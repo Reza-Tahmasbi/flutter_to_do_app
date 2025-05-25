@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:todolist/data/repo/repository.dart';
 import 'package:todolist/main.dart';
+import 'package:todolist/screens/edit/cubit/edit_task_cubit.dart';
 import 'package:todolist/screens/edit/edit.dart';
 import 'package:todolist/screens/home/bloc/task_list_bloc.dart';
 import 'package:todolist/widgets.dart';
@@ -28,7 +29,10 @@ class HomeScreen extends StatelessWidget {
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => EditTaskScreen(task: TaskEntity()),
+              builder: (context) => BlocProvider<EditTaskCubit>(
+                  create: (context) => EditTaskCubit(
+                      TaskEntity(), context.read<Repository<TaskEntity>>()),
+                  child: EditTaskScreen()),
             ),
           );
         },
@@ -115,31 +119,39 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: Consumer<Repository<TaskEntity>>(
-                    builder: (context, model, child) {
-                  context.read<TaskListBloc>().add(TaskListStarted());
-                  return BlocBuilder<TaskListBloc, TaskListState>(
-                    builder: (
-                      context,
-                      state,
-                    ) {
-                      if (state is TaskListSuccess) {
-                        return TaskList(
-                            items: state.items, themeData: themeData);
-                      } else if (state is TaskListEmpty) {
-                        return const EmptyState();
-                      } else if (state is TaskListLoading ||
-                          state is TaskListInitial) {
-                        return Center(child: CircularProgressIndicator());
-                      } else if (state is TaskListError) {
-                        return Center(
-                            child: Text("Error: ${state.errorMessage}"));
-                      } else {
-                        throw Exception("Unknown state: $state");
-                      }
-                    },
-                  );
-                }),
+                child: ValueListenableBuilder<Box<TaskEntity>>(
+                  valueListenable:
+                      Hive.box<TaskEntity>(taskBoxName).listenable(),
+                  builder: (context, box, child) {
+                    return Consumer<Repository<TaskEntity>>(
+                      builder: (context, model, child) {
+                        context.read<TaskListBloc>().add(TaskListStarted());
+                        return BlocBuilder<TaskListBloc, TaskListState>(
+                          builder: (context, state) {
+                            if (state is TaskListSuccess) {
+                              return state.items.isEmpty
+                                  ? const EmptyState()
+                                  : TaskList(
+                                      items: state.items,
+                                      themeData: Theme.of(context));
+                            } else if (state is TaskListLoading ||
+                                state is TaskListInitial) {
+                              return Center(child: CircularProgressIndicator());
+                            } else if (state is TaskListError) {
+                              return Center(
+                                  child: Text("Error: ${state.errorMessage}"));
+                            } else if (state is TaskListEmpty) {
+                              return const EmptyState();
+                            } else {
+                              return Center(
+                                  child: Text("Unknown state: ${state.runtimeType}"));
+                            }
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -219,12 +231,13 @@ class TaskList extends StatelessWidget {
 }
 
 class TaskItem extends StatefulWidget {
-  static const double height = 84;
-  static const double borderRadius = 8;
   const TaskItem({
     super.key,
     required this.task,
   });
+
+  static const double borderRadius = 8;
+  static const double height = 84;
 
   final TaskEntity task;
 
@@ -251,7 +264,10 @@ class _TaskItemState extends State<TaskItem> {
     return InkWell(
       onTap: () {
         Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => EditTaskScreen(task: widget.task)));
+            builder: (context) => BlocProvider<EditTaskCubit>(
+                create: (context) => EditTaskCubit(
+                    widget.task, context.read<Repository<TaskEntity>>()),
+                child: EditTaskScreen())));
       },
       onLongPress: () {
         widget.task.delete();

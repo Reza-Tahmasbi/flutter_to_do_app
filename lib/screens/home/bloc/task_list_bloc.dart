@@ -12,7 +12,6 @@ class TaskListBloc extends Bloc<TaskListEvent, TaskListState> {
     on<TaskListEvent>((event, emit) async{
       final String searchTerm;
       emit(TaskListLoading());
-      
       if (event is TaskListStarted || event is TaskListSearch) {
         if (event is TaskListSearch) {
           searchTerm = event.searchTerm;

@@ -9,7 +9,6 @@ import 'package:todolist/screens/home/home.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:todolist/screens/home/bloc/task_list_bloc.dart';
-
 const taskBoxName = 'tasks';
 
 void main() async {
